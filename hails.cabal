@@ -6,12 +6,17 @@ License-File:   LICENSE
 Author:         HAILS team
 Maintainer:     Amit Levy <levya at cs.stanford dot edu>, Deian Stefan  <deian at cs dot stanford dot edu>
 Stability:      experimental
-Synopsis:       Dynamic launcher of HAILS applications
+Synopsis:       Dynamic launcher of Hails applications
 Category:       Web
 Cabal-Version:  >= 1.8
 
 Description:
-        Executable for launching HAILS applications.
+        Executable for deploying Hails (see the hails Hackage package)
+        applications.
+
+Source-repository head
+  Type:     git
+  Location: http://www.github.com/scslab/hails-bin.git
 
 Executable hails
   Main-is: hails.hs
