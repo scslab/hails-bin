@@ -113,12 +113,12 @@ options =
       (ReqArg (\p o -> o { optPort = read p }) "PORT")
       "Run application on port PORT"
   , GetOpt.Option ['k'] ["key", "hmac-key"]
-      (ReqArg (\k o -> o { optKey = read k }) "HMAC_KEY")
+      (ReqArg (\k o -> o { optKey = L8.pack k }) "HMAC_KEY")
       "Application authentication HMAC key is HMAC_KEY"
   , GetOpt.Option ['d']    ["dev", "development"]
         (NoArg (\opts -> opts { optDev = True }))
         "Development mode, default (no authentication)"
-  , GetOpt.Option ['p']    ["prod", "production"]
+  , GetOpt.Option []    ["prod", "production"]
         (NoArg (\opts -> opts { optDev = False }))
         "Production mode (external authentication). Must set HMAC-KEY and AUTH_URL."
   , GetOpt.Option ['a'] ["auth-url"]
