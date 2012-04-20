@@ -148,7 +148,7 @@ envOpts :: Options -> [(String, String)] -> Options
 envOpts opts env = 
   opts { optName = maybe (optName opts) id (fromEnv "APP_NAME")
        , optPort = maybe (optPort opts) id (readFromEnv "PORT")
-       , optKey  = maybe (optKey  opts) id (fromEnv "HMAC_KEY")
+       , optKey  = maybe (optKey  opts) id (L8.pack `fmap` fromEnv "HMAC_KEY")
        , optUrl  = maybe (optUrl  opts) id (fromEnv "AUTH_URL")
        }
     where fromEnv n = lookup n env
