@@ -4,7 +4,7 @@ import Hails.HttpServer.Auth
 
 import Data.IterIO.Server.TCPServer
 import Data.Functor ((<$>))
-import Data.Maybe (listToMaybe)
+import Data.Maybe (listToMaybe, fromMaybe)
 import qualified Data.ByteString.Lazy.Char8 as L8
 
 import System.Environment
@@ -38,13 +38,20 @@ about prog ver = "About: " ++ prog ++ " " ++ ver ++
 --
 
 -- | Given an application name, return the corresponding computation.
-loadApp :: Bool -> AppName -> IO AppReqHandler
-loadApp safe appName = runGhc (Just libdir) $ do
-  dflags <- getSessionDynFlags
-  let dflagsXSafe = dopt_set (dflags { safeHaskell = Sf_Safe })
-                             Opt_PackageTrust
-  void $ setSessionDynFlags $ 
-          if safe then dflagsXSafe else dflags
+loadApp :: Bool -> Maybe String -> AppName -> IO AppReqHandler
+loadApp safe mpkgConf appName = runGhc (Just libdir) $ do
+  dflags0 <- getSessionDynFlags
+  let dflags1 = if safe
+                  then dopt_set (dflags0 { safeHaskell = Sf_Safe })
+                                Opt_PackageTrust
+                  else dflags0
+      dflags2 = case mpkgConf of
+                  Just pkgConf ->
+                    dopt_unset (dflags1 { extraPkgConfs =
+                                            pkgConf : extraPkgConfs dflags1 })
+                               Opt_ReadUserPackageConf
+                  _ -> dflags1
+  void $ setSessionDynFlags dflags2
   target <- guessTarget appName Nothing
   addTarget target
   r <- load LoadAllTargets
@@ -67,7 +74,8 @@ main = do
       authF   = if optDev opts
                   then basicNoAuth
                   else externalAuth (optKey opts) (optUrl opts)
-  func <- loadApp (optSafe opts) appName
+      mPkgConf = optPkgConf opts
+  func <- loadApp (optSafe opts) mPkgConf appName 
   runTCPServer $ secureHttpServer authF (fromInteger port) func
 
 --
@@ -86,23 +94,25 @@ printAbout = do
 --
 
 data Options = Options
-   { optName   :: String        -- ^ App name
-   , optPort   :: Integer       -- ^ App port number
-   , optAbout  :: Bool          -- ^ About this program
-   , optSafe   :: Bool          -- ^ Use -XSafe
-   , optDev    :: Bool          -- ^ Development
-   , optKey    :: L8.ByteString -- ^ HMAC key
-   , optUrl    :: String        -- ^ URL to auth service
+   { optName    :: String        -- ^ App name
+   , optPort    :: Integer       -- ^ App port number
+   , optAbout   :: Bool          -- ^ About this program
+   , optSafe    :: Bool          -- ^ Use -XSafe
+   , optDev     :: Bool          -- ^ Development
+   , optKey     :: L8.ByteString -- ^ HMAC key
+   , optUrl     :: String        -- ^ URL to auth service
+   , optPkgConf :: Maybe String  -- ^ Filepath of package-conf
    }
 
 defaultOpts :: Options
-defaultOpts = Options { optName   = "App"
-                      , optPort   = 8080
-                      , optAbout  = False
-                      , optSafe   = True
-                      , optDev    = True
-                      , optKey    = L8.empty
-                      , optUrl    = "http://127.0.0.1" }
+defaultOpts = Options { optName    = "App"
+                      , optPort    = 8080
+                      , optAbout   = False
+                      , optSafe    = True
+                      , optDev     = True
+                      , optKey     = L8.empty
+                      , optUrl     = "http://127.0.0.1"
+                      , optPkgConf = Nothing }
 
 options :: [ OptDescr (Options -> Options) ]
 options = 
@@ -127,6 +137,9 @@ options =
   , GetOpt.Option []    ["unsafe"]
         (NoArg (\opts -> opts { optSafe = False }))
         "Turn off the -XSafe flag"
+  , GetOpt.Option [] ["package-conf"]
+      (ReqArg (\n o -> o { optPkgConf = Just n }) "PACKAGE_CONF")
+        "Use specific package-conf file"
   , GetOpt.Option ['h','?']    ["help", "about"]
         (NoArg (\opts -> opts { optAbout = True }))
         "About this program"
@@ -146,10 +159,11 @@ hailsOpts args env = do
 
 envOpts :: Options -> [(String, String)] -> Options
 envOpts opts env = 
-  opts { optName = maybe (optName opts) id (fromEnv "APP_NAME")
-       , optPort = maybe (optPort opts) id (readFromEnv "PORT")
-       , optKey  = maybe (optKey  opts) id (L8.pack `fmap` fromEnv "HMAC_KEY")
-       , optUrl  = maybe (optUrl  opts) id (fromEnv "AUTH_URL")
+  opts { optName = fromMaybe (optName opts) $ fromEnv "APP_NAME"
+       , optPort = fromMaybe (optPort opts) $ readFromEnv "PORT"
+       , optKey  = fromMaybe (optKey  opts) $ L8.pack `fmap` fromEnv "HMAC_KEY"
+       , optUrl  = fromMaybe (optUrl  opts) $ fromEnv "AUTH_URL"
+       , optPkgConf = fromEnv "PACKAGE_CONF"
        }
     where fromEnv n = lookup n env
           readFromEnv n = lookup n env >>= mRead
