@@ -41,10 +41,10 @@ about prog ver = "About: " ++ prog ++ " " ++ ver ++
 loadApp :: Bool -> AppName -> IO AppReqHandler
 loadApp safe appName = runGhc (Just libdir) $ do
   dflags <- getSessionDynFlags
-  let dflagsXSafe = if safe
-                      then dflags { safeHaskell = Sf_Safe }
-                      else dflags
-  void $ setSessionDynFlags dflagsXSafe
+  let dflagsXSafe = dopt_set (dflags { safeHaskell = Sf_Safe })
+                             Opt_PackageTrust
+  void $ setSessionDynFlags $ 
+          if safe then dflagsXSafe else dflags
   target <- guessTarget appName Nothing
   addTarget target
   r <- load LoadAllTargets
