@@ -105,7 +105,7 @@ data Options = Options
    , optDev     :: Bool          -- ^ Development
    , optKey     :: L8.ByteString -- ^ HMAC key
    , optUrl     :: String        -- ^ URL to auth service
-   , optDBConf  :: Maybe String  -- ^ Filepath of databses-conf
+   , optDBConf  :: Maybe String  -- ^ Filepath of databases-conf
    , optPkgConf :: Maybe String  -- ^ Filepath of package-conf
    }
 
@@ -146,9 +146,9 @@ options =
   , GetOpt.Option [] ["package-conf"]
       (ReqArg (\n o -> o { optPkgConf = Just n }) "PACKAGE_CONF")
         "Use specific package-conf file"
-  , GetOpt.Option [] ["databases-conf"]
+  , GetOpt.Option [] ["database-conf"]
       (ReqArg (\n o -> o { optDBConf = Just n }) "DATABASE_CONFIG_FILE")
-        "Use specific databases.conf file"
+        "Use specific database.conf file"
   , GetOpt.Option ['h','?']    ["help", "about"]
         (NoArg (\opts -> opts { optAbout = True }))
         "About this program"
