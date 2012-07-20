@@ -7,6 +7,7 @@ import Data.Functor ((<$>))
 import Data.Maybe (listToMaybe, fromMaybe)
 import qualified Data.ByteString.Lazy.Char8 as L8
 
+import System.Posix.Env (setEnv)
 import System.Environment
 import System.Console.GetOpt hiding (Option)
 import qualified System.Console.GetOpt as GetOpt
@@ -75,6 +76,9 @@ main = do
                   then basicNoAuth
                   else externalAuth (optKey opts) (optUrl opts)
       mPkgConf = optPkgConf opts
+  case optDBConf opts of
+    Just dbConf -> setEnv "DATABASE_CONFIG_FILE" dbConf False
+    _           -> return ()
   func <- loadApp (optSafe opts) mPkgConf appName 
   runTCPServer $ secureHttpServer authF (fromInteger port) func
 
@@ -101,6 +105,7 @@ data Options = Options
    , optDev     :: Bool          -- ^ Development
    , optKey     :: L8.ByteString -- ^ HMAC key
    , optUrl     :: String        -- ^ URL to auth service
+   , optDBConf  :: Maybe String  -- ^ Filepath of databases-conf
    , optPkgConf :: Maybe String  -- ^ Filepath of package-conf
    }
 
@@ -112,6 +117,7 @@ defaultOpts = Options { optName    = "App"
                       , optDev     = True
                       , optKey     = L8.empty
                       , optUrl     = "http://127.0.0.1"
+                      , optDBConf  = Nothing
                       , optPkgConf = Nothing }
 
 options :: [ OptDescr (Options -> Options) ]
@@ -130,7 +136,7 @@ options =
         "Development mode, default (no authentication)"
   , GetOpt.Option []    ["prod", "production"]
         (NoArg (\opts -> opts { optDev = False }))
-        "Production mode (external authentication). Must set HMAC-KEY and AUTH_URL."
+        "Production mode (external authentication). Must set HMAC_KEY and AUTH_URL."
   , GetOpt.Option ['a'] ["auth-url"]
       (ReqArg (\u o -> o { optUrl = u }) "AUTH_URL")
       "Authentication service URL AUTH_URL"
@@ -140,6 +146,9 @@ options =
   , GetOpt.Option [] ["package-conf"]
       (ReqArg (\n o -> o { optPkgConf = Just n }) "PACKAGE_CONF")
         "Use specific package-conf file"
+  , GetOpt.Option [] ["database-conf"]
+      (ReqArg (\n o -> o { optDBConf = Just n }) "DATABASE_CONFIG_FILE")
+        "Use specific database.conf file"
   , GetOpt.Option ['h','?']    ["help", "about"]
         (NoArg (\opts -> opts { optAbout = True }))
         "About this program"
@@ -164,6 +173,7 @@ envOpts opts env =
        , optKey  = fromMaybe (optKey  opts) $ L8.pack `fmap` fromEnv "HMAC_KEY"
        , optUrl  = fromMaybe (optUrl  opts) $ fromEnv "AUTH_URL"
        , optPkgConf = fromEnv "PACKAGE_CONF"
+       , optDBConf  = fromEnv "DATABASE_CONFIG_FILE"
        }
     where fromEnv n = lookup n env
           readFromEnv n = lookup n env >>= mRead
