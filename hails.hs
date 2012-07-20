@@ -25,7 +25,7 @@ import Control.Monad (when, void )
 
 
 version :: String
-version = "0.1.3"
+version = "0.1.2"
 
 about :: String -> String -> String
 about prog ver = "About: " ++ prog ++ " " ++ ver ++
